@@ -1,5 +1,8 @@
 package edu.osu.cse5234.controller;
 
+import java.util.ArrayList;
+import java.util.List;
+
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
@@ -10,6 +13,7 @@ import org.springframework.web.bind.annotation.RequestMethod;
 
 import edu.osu.cse5234.business.OrderProcessingServiceBean;
 import edu.osu.cse5234.business.view.Inventory;
+import edu.osu.cse5234.business.view.Item;
 import edu.osu.cse5234.model.*;
 import edu.osu.cse5234.util.ServiceLocator;
 
@@ -21,7 +25,16 @@ public class Purchase {
 	public String viewOrderEntryForm(HttpServletRequest request, HttpServletResponse response) throws Exception {
 		Order order = new Order();
 		Inventory inventory = ServiceLocator.getInventoryService().getAvailableInventory();
-		order.setItems(inventory.getItems());
+		List<Item> items = inventory.getItems();
+		List<LineItem> lineItems = new ArrayList<>();
+		
+		// Item to LineItem
+		for (Item item: items) {
+			lineItems.add(new LineItem(item.getName(), item.getUnitPrice(), 0));
+		}
+		
+		order.setLineItems(lineItems);
+		
 		request.setAttribute("order", order);
 		return "OrderEntryForm";
 	}
@@ -70,6 +83,13 @@ public class Purchase {
 	@RequestMapping(path = "/confirmOrder", method = RequestMethod.POST)
 	public String confirmOrder(HttpServletRequest request) {
 		Order order = (Order)request.getSession().getAttribute("order");
+		
+		ShippingInfo shippingInfo = (ShippingInfo) request.getSession().getAttribute("shippingInfo");
+		PaymentInfo paymentInfo = (PaymentInfo) request.getSession().getAttribute("paymentInfo");
+		
+		order.setPayment(paymentInfo);
+		order.setShipping(shippingInfo);
+		
 		OrderProcessingServiceBean orderProcessingService = ServiceLocator.getOrderProcessingService();
 		String confirmNumb = orderProcessingService.processOrder(order);
 		request.getSession().setAttribute("confirmationNum", confirmNumb);
